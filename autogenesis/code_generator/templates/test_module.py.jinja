@@ -1,0 +1,168 @@
+"""
+Unit tests for {{ module_name }} module of {{ agent_name }}.
+
+This module contains unit tests to verify the functionality of the {{ module_name }} module.
+"""
+
+import unittest
+import os
+import tempfile
+from unittest.mock import patch, MagicMock
+{% if module_name == "main" %}
+from {{ agent_name|replace("-", "_") }} import main
+{% else %}
+from {{ agent_name|replace("-", "_") }}.core import {{ module_name }}
+{% endif %}
+
+
+class Test{{ module_name|to_class_name }}(unittest.TestCase):
+    """Test case for the {{ module_name }} module."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Mock configuration for testing
+        self.mock_config = {
+            "logging": {
+                "level": "DEBUG"
+            },
+            "source": {
+                "type": "test",
+                "value": "test_data"
+            },
+            "output": {
+                "format": "json",
+                "destination_type": "local_file",
+                "destination_value": "test_output.json"
+            }
+        }
+        
+        {% if module_name != "main" %}
+        # Initialize the module
+        self.{{ module_name }} = {{ module_name|to_class_name }}(self.mock_config)
+        {% endif %}
+    
+    def tearDown(self):
+        """Tear down test fixtures."""
+        pass
+    
+    {% if module_name == "main" %}
+    def test_main_function(self):
+        """Test the main function."""
+        with patch('argparse.ArgumentParser.parse_args') as mock_args:
+            # Configure mock arguments
+            mock_args.return_value.config = None
+            mock_args.return_value.log_level = "DEBUG"
+            mock_args.return_value.output = None
+            
+            # Mock load_config to return our test config
+            with patch('{{ agent_name|replace("-", "_") }}.config.load_config') as mock_load_config:
+                mock_load_config.return_value = self.mock_config
+                
+                # Mock setup_logging to do nothing
+                with patch('{{ agent_name|replace("-", "_") }}.utils.logging.setup_logging'):
+                    # Mock module initialization and function calls
+                    {% for module in core_modules %}
+                    with patch('{{ agent_name|replace("-", "_") }}.core.{{ module }}.{{ module|to_class_name }}') as mock_{{ module }}:
+                        mock_{{ module }}_instance = MagicMock()
+                        mock_{{ module }}.return_value = mock_{{ module }}_instance
+                    {% endfor %}
+                        
+                        # Run main function
+                        result = main.main()
+                        
+                        # Assert result
+                        self.assertEqual(result, 0)
+    
+    def test_setup_resources(self):
+        """Test the setup_resources function."""
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Configure test output to point to temp directory
+            test_config = self.mock_config.copy()
+            test_config["output"] = {
+                "destination_type": "local_file",
+                "destination_value": os.path.join(temp_dir, "output.json")
+            }
+            
+            # Call setup_resources
+            result = main.setup_resources(test_config)
+            
+            # Assert result
+            self.assertEqual(result["status"], "success")
+            
+            # Verify output directory was created
+            self.assertTrue(os.path.exists(temp_dir))
+    
+    def test_cleanup_resources(self):
+        """Test the cleanup_resources function."""
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create a test file to be cleaned up
+            test_file = os.path.join(temp_dir, "{{ agent_name }}_test.tmp")
+            with open(test_file, 'w') as f:
+                f.write("test data")
+            
+            # Configure test config to use temp directory
+            test_config = self.mock_config.copy()
+            test_config["temp_dir"] = temp_dir
+            
+            # Call cleanup_resources
+            result = main.cleanup_resources(test_config)
+            
+            # Assert result
+            self.assertEqual(result["status"], "success")
+            
+            # Verify file was removed
+            self.assertFalse(os.path.exists(test_file))
+    {% else %}
+    {% for method in functions %}
+    def test_{{ method.name }}(self):
+        """Test the {{ method.name }} method."""
+        # Mock inputs and dependencies
+        {% for param in method.params %}
+        mock_{{ param.name }} = {% if param.type == "str" %}"test_{{ param.name }}"{% elif param.type == "int" %}42{% elif param.type == "float" %}3.14{% elif param.type == "bool" %}True{% elif param.type == "Dict" %}{}{% elif param.type == "List" %}[]{% else %}MagicMock(){% endif %}
+        {% endfor %}
+        
+        # Call the method
+        result = self.{{ module_name }}.{{ method.name }}(
+            {% for param in method.params %}
+            {{ param.name }}=mock_{{ param.name }},
+            {% endfor %}
+        )
+        
+        # Assert results
+        self.assertIsNotNone(result)
+        {% if "status" in method.docstring %}
+        self.assertIn("status", result)
+        {% endif %}
+    
+    {% endfor %}
+    {% for cls in classes %}
+    {% for method in cls.methods %}
+    def test_{{ cls.name|lower }}_{{ method.name }}(self):
+        """Test the {{ method.name }} method of {{ cls.name }}."""
+        # Create instance of class
+        instance = {{ cls.name }}(self.mock_config)
+        
+        # Mock inputs and dependencies
+        {% for param in method.params %}
+        mock_{{ param.name }} = {% if param.type == "str" %}"test_{{ param.name }}"{% elif param.type == "int" %}42{% elif param.type == "float" %}3.14{% elif param.type == "bool" %}True{% elif param.type == "Dict" %}{}{% elif param.type == "List" %}[]{% else %}MagicMock(){% endif %}
+        {% endfor %}
+        
+        # Call the method
+        result = instance.{{ method.name }}(
+            {% for param in method.params %}
+            {{ param.name }}=mock_{{ param.name }},
+            {% endfor %}
+        )
+        
+        # Assert results
+        self.assertIsNotNone(result)
+    
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+
+
+if __name__ == '__main__':
+    unittest.main()

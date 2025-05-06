@@ -1,0 +1,124 @@
+"""
+Pytest fixtures for {{ agent_name }} tests.
+
+This module provides fixtures for unit and integration tests.
+"""
+
+import os
+import tempfile
+import pytest
+from unittest.mock import MagicMock
+
+
+@pytest.fixture
+def test_config():
+    """Fixture providing test configuration."""
+    return {
+        "logging": {
+            "level": "DEBUG",
+            "file": "/tmp/test_agent.log",
+            "format": "json"
+        },
+        "source": {
+            "type": "test",
+            "value": "test_data"
+        },
+        "output": {
+            "format": "json",
+            "destination_type": "local_file",
+            "destination_value": "test_output.json"
+        },
+        "constraints": {
+            "rate_limit_per_minute": 10,
+            "max_runtime_seconds": 60
+        }
+    }
+
+
+@pytest.fixture
+def temp_dir():
+    """Fixture providing a temporary directory."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        yield tmp_dir
+
+
+@pytest.fixture
+def temp_file():
+    """Fixture providing a temporary file."""
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        tmp_file.write(b'{"test": "data"}')
+        tmp_file.close()
+        
+        yield tmp_file.name
+        
+        # Cleanup
+        if os.path.exists(tmp_file.name):
+            os.unlink(tmp_file.name)
+
+{% if architecture_type == "pipeline" %}
+@pytest.fixture
+def mock_pipeline():
+    """Fixture providing a mock pipeline."""
+    pipeline = MagicMock()
+    pipeline.execute.return_value = {
+        "status": "success",
+        "results": {
+            "stage1": {"status": "success"},
+            "stage2": {"status": "success"}
+        }
+    }
+    return pipeline
+
+@pytest.fixture
+def mock_stage():
+    """Fixture providing a mock pipeline stage."""
+    stage = MagicMock()
+    stage.process.return_value = {
+        "status": "success",
+        "data": {"test": "result"}
+    }
+    return stage
+{% endif %}
+
+{% if architecture_type == "service" %}
+@pytest.fixture
+def mock_api_client():
+    """Fixture providing a mock API client."""
+    client = MagicMock()
+    client.get.return_value = MagicMock(status_code=200, json=lambda: {"test": "data"})
+    client.post.return_value = MagicMock(status_code=201, json=lambda: {"id": "test123"})
+    return client
+
+@pytest.fixture
+def mock_service():
+    """Fixture providing a mock service."""
+    service = MagicMock()
+    service.process.return_value = {
+        "status": "success",
+        "data": {"test": "result"}
+    }
+    return service
+{% endif %}
+
+{% if architecture_type == "event_driven" %}
+@pytest.fixture
+def mock_event_handler():
+    """Fixture providing a mock event handler."""
+    handler = MagicMock()
+    handler.handle_event.return_value = {
+        "status": "success",
+        "event_id": "test123",
+        "result": {"test": "data"}
+    }
+    return handler
+
+@pytest.fixture
+def mock_event():
+    """Fixture providing a mock event."""
+    return {
+        "event_type": "test_event",
+        "event_id": "test123",
+        "timestamp": "2023-01-01T00:00:00Z",
+        "data": {"test": "data"}
+    }
+{% endif %}

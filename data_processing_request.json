@@ -1,0 +1,20 @@
+{
+    "task_type": "data_processing",
+    "user_description_nl": "Procesar un archivo CSV, eliminar duplicados y guardar el resultado",
+    "requirements": {
+      "source": {
+        "type": "file",
+        "value": "data/sample.csv"
+      },
+      "output": {
+        "format": "csv",
+        "destination_type": "local_file",
+        "destination_value": "processed_data.csv"
+      },
+      "constraints": {
+        "max_runtime_seconds": 300
+      },
+      "preferred_tools": ["pandas", "numpy"],
+      "deployment_format": ["script"]
+    }
+  }

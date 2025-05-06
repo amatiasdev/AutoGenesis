@@ -1,0 +1,1 @@
+Crea un agente que lea el archivo CSV de ./data/sample.csv, elimine los duplicados, calcule estadísticas y guarde el resultado en un archivo Excel llamado processed_data.xlsx

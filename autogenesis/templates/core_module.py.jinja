@@ -1,0 +1,90 @@
+"""
+{{ module_name }} module for {{ agent_name }}.
+
+This module handles {{ module_name }}-related operations for the agent.
+"""
+
+import logging
+import os
+import json
+from typing import Dict, Any, List, Optional, Union, Tuple
+
+class {{ class_name }}:
+    """
+    Handles {{ module_name }} operations for the agent.
+    
+    This class provides methods for {{ module_name }}-related functionality,
+    including {% for action in actions %}{{ action.name }}{% if not loop.last %}, {% endif %}{% endfor %}.
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize the {{ module_name }} module.
+        
+        Args:
+            config: Agent configuration dictionary
+        """
+        self.logger = logging.getLogger(__name__)
+        self.config = config
+        
+        # Initialize module-specific configuration
+        self.module_config = config.get('{{ module_name }}', {})
+        
+        # Initialize any required resources
+        self._initialize_resources()
+    
+    def _initialize_resources(self):
+        """Initialize resources required by this module."""
+        self.logger.debug("Initializing {{ module_name }} resources")
+        
+        {% if tools %}
+        # Initialize tools
+        {% for tool, details in tools.items() %}
+        # Initialize {{ tool }}
+        try:
+            import {{ tool }}
+            self.logger.debug("Initialized {{ tool }}")
+        except ImportError:
+            self.logger.warning("{{ tool }} not available, some functionality may be limited")
+        {% endfor %}
+        {% endif %}
+    
+    {% for action in actions %}
+    def {{ action.name }}(self{% for param_name, param_value in action.parameters.items() %}, {{ param_name }}: {{ param_value.__class__.__name__ }}{% endfor %}{% for req in action.requires %}, {{ req }}_result: Dict[str, Any]{% endfor %}) -> Dict[str, Any]:
+        """
+        {{ action.description }}
+        
+        {% if action.parameters %}
+        Args:
+            {% for param_name, param_value in action.parameters.items() %}
+            {{ param_name }}: {{ action.parameters.get(param_name + '_description', 'Parameter description') }}
+            {% endfor %}
+            {% for req in action.requires %}
+            {{ req }}_result: Results from the {{ req }} action
+            {% endfor %}
+        {% endif %}
+        
+        Returns:
+            Dict containing the results of the {{ action.name }} action
+        """
+        self.logger.info("Executing {{ action.name }}")
+        
+        # Implement {{ action.name }} logic here
+        result = {
+            "status": "success",
+            "action": "{{ action.name }}",
+            "data": {}
+        }
+        
+        try:
+            # TODO: Add implementation for {{ action.name }} action
+            pass
+            
+        except Exception as e:
+            self.logger.error(f"Error in {{ action.name }}: {str(e)}", exc_info=True)
+            result["status"] = "error"
+            result["error"] = str(e)
+        
+        return result
+    
+    {% endfor %}

@@ -1,0 +1,172 @@
+"""
+Configuration module for {{ agent_name }}.
+
+This module handles loading and validating configuration for the agent.
+"""
+
+import os
+import yaml
+import json
+import logging
+from typing import Dict, Any, Optional
+
+# Default configuration
+DEFAULT_CONFIG = {
+    {% for section, options in config_points.items() %}
+    "{{ section }}": {
+        {% for key, value in options.items() %}
+        {% if key != "configurable" and value is not mapping %}
+        "{{ key }}": {{ value }},
+        {% endif %}
+        {% endfor %}
+    },
+    {% endfor %}
+}
+
+
+def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Load configuration from file or use defaults.
+    
+    Args:
+        config_path: Path to configuration file (YAML or JSON)
+        
+    Returns:
+        Dict containing configuration values
+        
+    Raises:
+        ValueError: If configuration file is invalid
+    """
+    logger = logging.getLogger(__name__)
+    
+    # Start with default configuration
+    config = DEFAULT_CONFIG.copy()
+    
+    # Try to load configuration from file
+    if config_path:
+        logger.info(f"Loading configuration from {config_path}")
+        
+        if not os.path.exists(config_path):
+            logger.warning(f"Configuration file not found: {config_path}")
+            return config
+        
+        try:
+            if config_path.endswith('.yaml') or config_path.endswith('.yml'):
+                with open(config_path, 'r') as f:
+                    file_config = yaml.safe_load(f)
+            elif config_path.endswith('.json'):
+                with open(config_path, 'r') as f:
+                    file_config = json.load(f)
+            else:
+                logger.warning(f"Unsupported configuration file format: {config_path}")
+                return config
+            
+            # Merge file configuration with defaults
+            _merge_configs(config, file_config)
+            logger.info("Configuration loaded successfully")
+            
+        except Exception as e:
+            logger.error(f"Error loading configuration: {str(e)}")
+            raise ValueError(f"Invalid configuration file: {str(e)}")
+    
+    # Check for environment variable overrides
+    _apply_env_overrides(config)
+    
+    # Validate configuration
+    _validate_config(config)
+    
+    return config
+
+
+def _merge_configs(base_config: Dict[str, Any], override_config: Dict[str, Any]) -> None:
+    """
+    Merge override configuration into base configuration.
+    
+    Args:
+        base_config: Base configuration (modified in place)
+        override_config: Override configuration
+    """
+    for key, value in override_config.items():
+        if key in base_config and isinstance(base_config[key], dict) and isinstance(value, dict):
+            _merge_configs(base_config[key], value)
+        else:
+            base_config[key] = value
+
+
+def _apply_env_overrides(config: Dict[str, Any]) -> None:
+    """
+    Apply environment variable overrides to configuration.
+    
+    Environment variables in the format {{ agent_name|upper }}_SECTION_KEY
+    will override config[section][key].
+    
+    Args:
+        config: Configuration dictionary (modified in place)
+    """
+    logger = logging.getLogger(__name__)
+    prefix = "{{ agent_name|upper }}_"
+    
+    for env_var, value in os.environ.items():
+        if env_var.startswith(prefix):
+            # Split into section and key
+            parts = env_var[len(prefix):].lower().split('_', 1)
+            
+            if len(parts) == 2:
+                section, key = parts
+                
+                # Update configuration if section and key exist
+                if section in config and key in config[section]:
+                    # Convert value to appropriate type
+                    original_value = config[section][key]
+                    converted_value = _convert_value(value, type(original_value))
+                    
+                    config[section][key] = converted_value
+                    logger.debug(f"Applied environment override {env_var} = {converted_value}")
+
+
+def _convert_value(value: str, target_type: type) -> Any:
+    """
+    Convert string value to target type.
+    
+    Args:
+        value: String value to convert
+        target_type: Target type
+        
+    Returns:
+        Converted value
+    """
+    if target_type == bool:
+        return value.lower() in ('true', 'yes', 'y', '1')
+    elif target_type == int:
+        return int(value)
+    elif target_type == float:
+        return float(value)
+    elif target_type == list:
+        return json.loads(value)
+    elif target_type == dict:
+        return json.loads(value)
+    else:
+        return value
+
+
+def _validate_config(config: Dict[str, Any]) -> None:
+    """
+    Validate configuration values.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Raises:
+        ValueError: If configuration is invalid
+    """
+    logger = logging.getLogger(__name__)
+    
+    # Validate required sections
+    required_sections = ['logging', 'source', 'output']
+    for section in required_sections:
+        if section not in config:
+            raise ValueError(f"Missing required configuration section: {section}")
+    
+    # Add additional validation rules here
+    
+    logger.debug("Configuration validation successful")

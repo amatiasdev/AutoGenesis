@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""
+{{ agent_name }}
+
+{{ description }}
+
+This is the main entry point for the agent, which orchestrates the execution
+of the various modules to accomplish the required task.
+"""
+
+import sys
+import os
+import logging
+import argparse
+from typing import Dict, Any, List, Optional
+
+# Import configuration
+from {{ package_name }}.config import load_config
+
+# Import core modules
+{% for module in core_modules %}
+from {{ package_name }}.core.{{ module }} import {{ module|to_class_name }}
+{% endfor %}
+
+# Import utilities
+from {{ package_name }}.utils.logging import setup_logging
+from {{ package_name }}.utils.error_handler import handle_exceptions
+
+
+@handle_exceptions(default_message="Agent execution failed")
+def main():
+    """
+    Main entry point for the agent.
+    
+    Parses command line arguments, loads configuration, and executes the agent workflow.
+    """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="{{ description }}")
+    parser.add_argument('--config', type=str, help='Path to configuration file')
+    parser.add_argument('--log-level', type=str, default='INFO', help='Logging level')
+    parser.add_argument('--output', type=str, help='Output path or destination')
+    args = parser.parse_args()
+    
+    # Setup logging
+    setup_logging(args.log_level)
+    logger = logging.getLogger(__name__)
+    
+    logger.info("Starting {{ agent_name }}")
+    
+    # Load configuration
+    config_path = args.config
+    config = load_config(config_path)
+    
+    # Override configuration with command line arguments
+    if args.output:
+        config['output']['destination_value'] = args.output
+    
+    # Execute agent workflow
+    try:
+        # Initialize modules
+        {% for module in core_modules %}
+        {{ module }}_module = {{ module|to_class_name }}(config)
+        {% endfor %}
+        
+        # Execute workflow
+        {% for action in actions %}
+        {% if not action.requires or action.id == "setup" %}
+        logger.info("Executing {{ action.name }}")
+        {% if action.id == "setup" %}
+        # Setup resources and configuration
+        setup_result = setup_resources(config)
+        {% else %}
+        {% set module = action.name.split('_')[0] %}
+        # Execute {{ action.name }}
+        {{ action.name }}_result = {{ module }}_module.{{ action.name }}(
+            {% for param_name, param_value in action.parameters.items() %}
+            {{ param_name }}={{ param_value }},
+            {% endfor %}
+        )
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+        
+        {% for action in actions %}
+        {% if action.requires and action.id != "setup" and action.id != "cleanup" %}
+        logger.info("Executing {{ action.name }}")
+        {% set module = action.name.split('_')[0] %}
+        # Execute {{ action.name }}
+        {{ action.name }}_result = {{ module }}_module.{{ action.name }}(
+            {% for param_name, param_value in action.parameters.items() %}
+            {{ param_name }}={{ param_value }},
+            {% endfor %}
+            {% for req in action.requires %}
+            {% set req_action = req %}
+            {{ req_action }}_result={{ req_action }}_result,
+            {% endfor %}
+        )
+        {% endif %}
+        {% endfor %}
+        
+        {% for action in actions %}
+        {% if action.id == "cleanup" %}
+        logger.info("Executing cleanup")
+        # Cleanup resources
+        cleanup_result = cleanup_resources(config)
+        {% endif %}
+        {% endfor %}
+        
+        logger.info("{{ agent_name }} completed successfully")
+        return 0
+        
+    except Exception as e:
+        logger.error(f"Agent execution failed: {str(e)}", exc_info=True)
+        return 1
+
+
+def setup_resources(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Set up resources and initialize the environment.
+    
+    Args:
+        config: Agent configuration
+        
+    Returns:
+        Dict containing setup results
+    """
+    logger = logging.getLogger(__name__)
+    logger.info("Setting up resources")
+    
+    # Create output directory if it doesn't exist
+    if config['output']['destination_type'] == 'local_file':
+        output_dir = os.path.dirname(config['output']['destination_value'])
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Created output directory: {output_dir}")
+    
+    return {"status": "success"}
+
+
+def cleanup_resources(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Clean up resources and temporary files.
+    
+    Args:
+        config: Agent configuration
+        
+    Returns:
+        Dict containing cleanup results
+    """
+    logger = logging.getLogger(__name__)
+    logger.info("Cleaning up resources")
+    
+    # Remove temporary files
+    temp_dir = config.get('temp_dir', '/tmp')
+    if os.path.exists(temp_dir):
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                if file.startswith('{{ agent_name }}_'):
+                    os.remove(os.path.join(root, file))
+                    logger.debug(f"Removed temporary file: {file}")
+    
+    return {"status": "success"}
+
+
+if __name__ == "__main__":
+    sys.exit(main())

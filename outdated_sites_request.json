@@ -1,0 +1,24 @@
+{
+    "task_type": "web_analysis",
+    "user_description_nl": "Detectar páginas web que no han sido actualizadas en más de 5 años",
+    "requirements": {
+      "source": {
+        "type": "url_list",
+        "value": "https://www.phxbistro.com/"
+      },
+      "processing_steps": [
+        {"action": "extract_metadata", "fields": ["last_modified", "copyright_year", "content_dates"]},
+        {"action": "analyze_freshness", "threshold_years": 5}
+      ],
+      "output": {
+        "format": "csv",
+        "destination_type": "local_file",
+        "destination_value": "outdated_sites_analysis.csv"
+      },
+      "constraints": {
+        "rate_limit_per_minute": 5
+      },
+      "preferred_tools": ["requests", "beautifulsoup4", "pandas"],
+      "deployment_format": ["script"]
+    }
+  }

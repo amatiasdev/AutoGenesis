@@ -1,0 +1,20 @@
+{
+    "task_type": "web_scraping",
+    "user_description_nl": "Extraer títulos y descripciones de varias páginas web",
+    "requirements": {
+      "source": {
+        "type": "url_list",
+        "value": "https://www.example.com,https://www.python.org,https://www.phxbistro.com"
+      },
+      "output": {
+        "format": "csv",
+        "destination_type": "local_file",
+        "destination_value": "websites_info.csv"
+      },
+      "constraints": {
+        "rate_limit_per_minute": 5
+      },
+      "preferred_tools": ["requests", "beautifulsoup4", "pandas"],
+      "deployment_format": ["script"]
+    }
+  }

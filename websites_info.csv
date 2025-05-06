@@ -1,0 +1,4 @@
+url,timestamp,status,title,description
+https://www.example.com,2025-05-04T08:16:56.386049,Success,Example Domain,
+https://www.python.org,2025-05-04T08:17:09.028869,Success,Welcome to Python.org,The official home of the Python Programming Language
+https://www.phxbistro.com,2025-05-04T08:17:21.517593,Success,Phx Bistro,"Treat yourself to tasty, creative food in our lovely Phx Bistro and Wine Bar"

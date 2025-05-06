@@ -417,7 +417,7 @@ class ToolSelector:
             if "authenticate" in action_name:
                 capabilities.add("authentication")
             
-            if "navigate" in action_name and "url" in action_params:
+            if any(kw in action_name for kw in ["http_request", "navigate", "fetch"]) and "url" in action_params:
                 capabilities.add("http_requests")
                 
             if "browser" in action_name:

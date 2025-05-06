@@ -59,12 +59,12 @@ class TestToolSelector(unittest.TestCase):
         """Test tool selection for specific actions."""
         # Sample actions
         actions = [
-            {'type': 'http_request', 'url': 'example.com/data'},
-            {'type': 'parse_html', 'selectors': ['.product-title']}
+            {'name': 'http_request', 'parameters': {'url': 'example.com/data'}},
+            {'name': 'parse_html', 'parameters': {'selectors': ['.product-title']}}
         ]
         
         # Select tools
-        tools = self.selector.select_tools(actions)
+        tools = self.selector.select_tools(actions=actions)
         
         # Assert results
         self.assertIsNotNone(tools)
@@ -86,7 +86,8 @@ class TestToolSelector(unittest.TestCase):
         }
         
         # Select tools with constraints
-        tools = self.selector.select_tools(actions, constraints)
+        tools = self.selector.select_tools(actions=[{'name': 'http_request', 'parameters': {'url': 'example.com/data'}}],
+                                   resource_specs={'memory_mb': 256, 'cpu_cores': 0.5})
         
         # Assert results - should prefer lightweight alternatives when constrained
         self.assertIsNotNone(tools)
@@ -118,9 +119,18 @@ class TestResourceAnalyzer(unittest.TestCase):
             'name': 'Test Agent',
             'architecture_type': 'modular',
             'tools': {
-                'requests': {'version': '2.28.1'},
-                'beautifulsoup4': {'version': '4.11.1'},
-                'pandas': {'version': '1.5.3'}
+                'requests': {
+                    'version': '2.28.1',
+                    'resource_requirements': {'memory_mb': 10, 'cpu_cores': 0.1, 'disk_mb': 1}
+                },
+                'beautifulsoup4': {
+                    'version': '4.11.1',
+                    'resource_requirements': {'memory_mb': 20, 'cpu_cores': 0.1, 'disk_mb': 5}
+                },
+                'pandas': {
+                    'version': '1.5.3',
+                    'resource_requirements': {'memory_mb': 150, 'cpu_cores': 0.3, 'disk_mb': 50}
+                }
             }
         }
         
@@ -128,10 +138,14 @@ class TestResourceAnalyzer(unittest.TestCase):
         requirements = self.analyzer.analyze_blueprint_resources(blueprint)
         
         # Assert results
+        # Assert results
         self.assertIsNotNone(requirements)
-        self.assertIn('estimated_memory_mb', requirements)
-        self.assertIn('estimated_cpu_cores', requirements)
-        self.assertTrue(requirements['estimated_memory_mb'] > 0)
+        self.assertIn('memory_mb', requirements)
+        self.assertIn('cpu_cores', requirements)
+        self.assertIn('disk_mb', requirements)
+        self.assertGreater(requirements['memory_mb'], 0)
+        self.assertGreater(requirements['cpu_cores'], 0)
+        self.assertGreater(requirements['disk_mb'], 0)
 
 
 if __name__ == '__main__':

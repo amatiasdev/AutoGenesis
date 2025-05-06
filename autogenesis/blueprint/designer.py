@@ -87,6 +87,10 @@ class BlueprintDesigner:
         """
         self.logger.info("Designing agent blueprint")
         
+        # Ensure actions is not None to avoid iteration errors
+        if actions is None:
+            actions = []
+        
         # Extract basic details
         task_type = requirements.get("task_type", "unknown")
         description = requirements.get("description", "")

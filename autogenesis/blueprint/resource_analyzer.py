@@ -176,7 +176,7 @@ class ResourceAnalyzer:
     def _get_windows_cpu_info(self) -> Dict[str, Any]:
         """
         Get CPU information from a Windows system.
-        
+
         Returns:
             Dict containing CPU information
         """
@@ -184,29 +184,38 @@ class ResourceAnalyzer:
         
         try:
             # Use wmic command
-            cpu_output = subprocess.check_output("wmic cpu get Caption, NumberOfCores, NumberOfLogicalProcessors /format:list", shell=True).decode()
-            
+            cpu_output = subprocess.check_output(
+                "wmic cpu get Caption, NumberOfCores, NumberOfLogicalProcessors /format:list",
+                shell=True
+            ).decode()
+
             # Parse output
             for line in cpu_output.split('\n'):
                 if ":" in line:
                     key, value = line.split(':', 1)
                     key = key.strip()
                     value = value.strip()
-                    
+
                     if key == "Caption":
                         cpu_info["cpu_model"] = value
                     elif key == "NumberOfCores":
                         cpu_info["physical_cores"] = int(value)
                     elif key == "NumberOfLogicalProcessors":
                         cpu_info["cpu_cores"] = int(value)
-        
+
         except Exception as e:
             self.logger.error(f"Error getting Windows CPU info: {str(e)}")
-            # Fallback
-            import multiprocessing
-            cpu_info["cpu_cores"] = multiprocessing.cpu_count()
-        
+
+        # Fallback: ensure cpu_cores is set
+        if "cpu_cores" not in cpu_info:
+            try:
+                import multiprocessing
+                cpu_info["cpu_cores"] = multiprocessing.cpu_count()
+            except Exception:
+                cpu_info["cpu_cores"] = 1  # Último recurso
+
         return cpu_info
+
     
     def _get_memory_info(self) -> Dict[str, Any]:
         """
@@ -298,7 +307,7 @@ class ResourceAnalyzer:
             free_pages = 0
             for line in vm_stat.split('\n'):
                 if "Pages free" in line:
-                    free_pages = int(line.split(': ')[1].strip('\.'))
+                    free_pages = int(line.split(': ')[1].strip('.'))
                     break
             
             memory_info["free_memory_mb"] = (free_pages * page_size) // (1024 * 1024)
@@ -382,6 +391,23 @@ class ResourceAnalyzer:
         
         return False
     
+    def _get_tool_resource_requirements(self, tool_name: str, tool_info: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get resource requirements for a tool from blueprint or fallback defaults.
+
+        Args:
+            tool_name: Name of the tool
+            tool_info: Dict containing tool metadata (from blueprint)
+
+        Returns:
+            Dict with memory_mb, cpu_cores, and disk_mb
+        """
+        return tool_info.get("resource_requirements", {
+            "memory_mb": 50,
+            "cpu_cores": 0.1,
+            "disk_mb": 10
+        })
+
     def analyze_blueprint_resources(self, blueprint: Dict[str, Any]) -> Dict[str, Any]:
         """
         Analyze the resource requirements for a given blueprint.
